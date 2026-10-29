@@ -1,7 +1,9 @@
 # Notes for Claude (read first)
 
 - Owner: Kunal, about 10% coding knowledge, Windows + VS Code + PowerShell. Explain step by step, plain words, always
-  give the folder: `C:\Users\USER\Desktop\Kunal\kunal-fyers-terminal` (its own `.venv`).
+  give the folder: `C:\Users\USER\Desktop\Kunal\kunal-fyers-terminal` (its own `.venv`, start: start_terminal.bat).
+- Setup on the PC: `python setup_pc.py` (fyers-apiv3 installed --no-deps: its aiohttp 3.9.3 pin cannot build on
+  Python 3.13 Windows; owner's PowerShell blocks Activate.ps1, so use `.venv\Scripts\python.exe` / start_terminal.bat).
 - Tests: `python -m pytest tests -q` (tests/conftest.py keeps every test in a temporary data folder).
 - Strategy = owner's rules 28 Oct 2026, see README and `terminal/strategy.py`: BBP_NM Direction cross above 0 -> CALL,
   below 0 -> PUT, finished candles only, SL = option's signal-candle low, exit on the opposite cross, 09:30-15:00,

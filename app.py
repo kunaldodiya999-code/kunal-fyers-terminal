@@ -1,6 +1,6 @@
 """Kunal FYERS Terminal: login with FYERS, then chart + option chain + the BBP_NM strategy (paper by default).
 
-Start (folder C:\\Users\\USER\\Desktop\\Kunal\\kunal-fyers-terminal, venv active):   streamlit run app.py
+Start: double-click start_terminal.bat (folder C:\\Users\\USER\\Desktop\\Kunal\\kunal-fyers-terminal)
 """
 
 from __future__ import annotations
@@ -240,7 +240,7 @@ with tab3:
                    key="w_buf", on_change=bind, args=("buffer", "w_buf"))
     st.number_input("BBP_NM lookback window", min_value=2, max_value=100, step=1, value=int(s.bbp_window),
                     key="w_win", on_change=bind, args=("bbp_window", "w_win", int))
-    st.toggle("Real orders (needs today's arm: python arm_real_orders.py)", value=s.real_orders, key="w_real",
+    st.toggle("Real orders (needs today's arm: .venv\\Scripts\\python.exe arm_real_orders.py)", value=s.real_orders, key="w_real",
               on_change=bind, args=("real_orders", "w_real"))
     st.caption("Real orders are LIMIT orders only (buy price + buffer, sell price - buffer), never market. "
                "FYERS needs your whitelisted static IP for API orders. While today is not armed, every trade is "

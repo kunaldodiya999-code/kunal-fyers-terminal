@@ -1,8 +1,8 @@
 """Arm (or disarm) REAL orders for TODAY only.
 
-    python arm_real_orders.py            asks you to type the phrase, arms today
-    python arm_real_orders.py --off      disarms
-    python arm_real_orders.py --status   shows the state
+    .venv\Scripts\python.exe arm_real_orders.py            asks you to type the phrase, arms today
+    .venv\Scripts\python.exe arm_real_orders.py --off      disarms
+    .venv\Scripts\python.exe arm_real_orders.py --status   shows the state
 
 Real orders also need the "Real orders" switch ON in the terminal's Settings tab. Tomorrow it is OFF again.
 """

@@ -34,30 +34,19 @@ never more than the funds available. KTMI Uni Lite is shown on the chart only; i
 
 ## Install (one time) — on your PC, PowerShell
 
-1. Open PowerShell and go to your Kunal folder:
+1. Open PowerShell and go to your Kunal folder, then download this project:
    ```
    cd C:\Users\USER\Desktop\Kunal
-   ```
-2. Download this project:
-   ```
    git clone https://github.com/kunaldodiya999-code/kunal-fyers-terminal.git
    cd kunal-fyers-terminal
    ```
-   You are now in `C:\Users\USER\Desktop\Kunal\kunal-fyers-terminal`. All the commands below run here.
-3. Make its own Python box (venv) and switch it on:
+   You are now in `C:\Users\USER\Desktop\Kunal\kunal-fyers-terminal`.
+2. One command does the whole setup (its own Python box `.venv`, all parts, FYERS library, tests):
    ```
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
+   python setup_pc.py
    ```
-   The line must now start with `(.venv)`.
-4. Install the parts:
-   ```
-   pip install -r requirements.txt
-   ```
-5. Check everything works (should end with `passed`):
-   ```
-   python -m pytest tests -q
-   ```
+   It takes a few minutes and must end with `35 passed` and `ALL DONE`.
+   (No `Activate.ps1` needed, so the Windows "running scripts is disabled" message does not matter.)
 
 ## Your FYERS app (one time)
 
@@ -67,11 +56,8 @@ terminal must be exactly the same as in the FYERS app (e.g. `http://127.0.0.1:80
 
 ## Every trading day
 
-1. Folder `C:\Users\USER\Desktop\Kunal\kunal-fyers-terminal`, PowerShell:
-   ```
-   .\.venv\Scripts\Activate.ps1
-   streamlit run app.py
-   ```
+1. Double-click **`start_terminal.bat`** in the folder `C:\Users\USER\Desktop\Kunal\kunal-fyers-terminal`
+   (or in PowerShell in that folder: `.\.venv\Scripts\python.exe -m streamlit run app.py`).
    The browser opens the terminal (if not, open http://localhost:8501). Keep this PowerShell window open.
 2. **Login page**:
    * Step 1 (first time only): App ID, Secret ID, Redirect URL, then **Save app details**
@@ -85,14 +71,14 @@ terminal must be exactly the same as in the FYERS app (e.g. `http://127.0.0.1:80
 5. Tabs under the chart: **Today's trades**, **What happened** (every signal and why a trade was or was not taken),
    **Settings** (times, buffer, BBP lookback, Real orders).
 
-To stop: close the browser tab and press `Ctrl + C` in the PowerShell window.
+To stop: close the browser tab and close the black window (or press `Ctrl + C` in it).
 
 ## Real orders (later, only when you decide)
 
 Two locks, both needed, every day:
 1. Settings tab: switch **Real orders** ON.
-2. In a second PowerShell window (same folder, venv on): `python arm_real_orders.py` and type the phrase it shows.
-   It is valid for TODAY only. `python arm_real_orders.py --off` switches it off.
+2. In PowerShell in the same folder: `.\.venv\Scripts\python.exe arm_real_orders.py` and type the phrase it shows.
+   It is valid for TODAY only. `.\.venv\Scripts\python.exe arm_real_orders.py --off` switches it off.
 
 FYERS only accepts API orders from your **whitelisted static IP** (SEBI rule 2026): set it up with FYERS first.
 Orders are LIMIT orders only (buy price + buffer, re-priced at most Rs 1 higher, sell price - buffer). Never market.
