@@ -112,4 +112,37 @@ def chart_html() -> str:
     return PAGE.replace("__LIBRARY__", LIBRARY.read_text(encoding="utf-8")).replace("__DATA_URL__", DATA_URL)
 
 
-__all__ = ["DATA_URL", "chart_html"]
+__all__ = ["DATA_URL", "chart_html", "replay_html"]
+
+
+REPLAY = """<!doctype html><html><head><meta charset="utf-8"><style>
+html, body { margin: 0; background: #131722; color: #d1d4dc; font: 12px -apple-system, 'Trebuchet MS', sans-serif; }
+#box { display: flex; height: 100vh; gap: 6px; } .p { flex: 1; position: relative; }
+.t { position: absolute; left: 8px; top: 4px; z-index: 5; background: rgba(19,23,34,.7); padding: 1px 4px; }
+</style></head><body><div id="box"><div class="p" id="a"><div class="t" id="ta"></div></div>
+<div class="p" id="b"><div class="t" id="tb"></div></div></div>
+<script>__LIBRARY__</script><script>
+const D = __DATA__;
+function pane(id, title, candles, markers, lines) {
+  document.getElementById("t" + id).textContent = title;
+  const c = LightweightCharts.createChart(document.getElementById(id), { autoSize: true,
+    layout: { background: { color: "#131722" }, textColor: "#d1d4dc" },
+    grid: { vertLines: { color: "#1e222d" }, horzLines: { color: "#1e222d" } },
+    rightPriceScale: { borderColor: "#2a2e39" }, timeScale: { borderColor: "#2a2e39", timeVisible: true } });
+  const s = c.addCandlestickSeries({ upColor: "#26a69a", downColor: "#ef5350", borderVisible: false,
+    wickUpColor: "#26a69a", wickDownColor: "#ef5350" });
+  s.setData(candles); s.setMarkers(markers);
+  (lines || []).forEach(l => s.createPriceLine({ price: l.price, color: l.color, lineWidth: 1, lineStyle: 2,
+    axisLabelVisible: true, title: l.title }));
+  const el = document.getElementById(id);                 // fit again whenever the frame gets its real size
+  new ResizeObserver(() => c.timeScale().fitContent()).observe(el);
+}
+pane("a", D.index_title, D.index, D.index_markers, []);
+pane("b", D.option_title, D.option, D.option_markers, D.lines);
+</script></body></html>"""
+
+
+def replay_html(data: dict) -> str:
+    """Two charts side by side for one backtest trade: the index (signal) and the option (entry, stop, exit)."""
+    import json
+    return REPLAY.replace("__LIBRARY__", LIBRARY.read_text(encoding="utf-8")).replace("__DATA__", json.dumps(data))

@@ -140,8 +140,13 @@ class Fyers:
     def profile(self) -> dict:
         return self._ok(self.model.get_profile(), "profile").get("data", {})
 
+    fund_rows: list = []
+
     def available_funds(self) -> float:
-        for row in self._ok(self.model.funds(), "funds").get("fund_limit") or []:
+        rows = self._ok(self.model.funds(), "funds").get("fund_limit") or []
+        self.fund_rows = [{"title": r.get("title"), "equity": r.get("equityAmount"),
+                           "commodity": r.get("commodityAmount")} for r in rows]
+        for row in rows:
             if row.get("id") == 10 or str(row.get("title", "")).strip().lower() == "available balance":
                 return float(row.get("equityAmount") or 0.0)
         raise ValueError("FYERS funds: no 'Available Balance' row")

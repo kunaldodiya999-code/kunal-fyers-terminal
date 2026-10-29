@@ -106,6 +106,12 @@ def bind(field: str, key: str, cast=lambda v: v) -> None:
 
 s = store.load()
 
+view = st.radio("View", ("Live terminal", "Backtest"), horizontal=True, label_visibility="collapsed", key="w_view")
+if view == "Backtest":
+    from terminal.backtest_view import render as backtest_screen
+    backtest_screen(term.client)
+    st.stop()
+
 # ------------------------------------------------------------------ top bar
 top = st.columns([2.6, 2.2, 3.2, 1])
 labels = {k: v.label for k, v in INDEXES.items()}
@@ -151,9 +157,17 @@ with right:
     def funds_box() -> None:
         snap = term.snapshot()
         a, b = st.columns(2)
-        a.metric("Funds available", "-" if snap["funds"] is None else f"Rs {snap['funds']:,.0f}")
+        a.metric("Funds available", "-" if snap["funds"] is None else f"Rs {snap['funds']:,.0f}",
+                 help="FYERS 'Available Balance'. Real orders size from this; paper trades use the Paper capital.")
         b.metric("Funds utilized", f"{snap['utilized_pct']:.1f} %")
+        if snap["fund_rows"]:
+            with st.expander("FYERS funds details"):
+                st.dataframe(pd.DataFrame(snap["fund_rows"]), hide_index=True, width="stretch")
     funds_box()
+    if not s.real_orders:
+        st.number_input("Paper capital (Rs) - paper trades size from this", min_value=0.0, step=10000.0,
+                        value=float(s.paper_capital), key="w_paper", on_change=bind,
+                        args=("paper_capital", "w_paper"))
     st.number_input("Funds to utilize per new entry (Rs)", min_value=0.0, step=1000.0, value=float(s.funds_per_entry),
                     key="w_funds", on_change=bind, args=("funds_per_entry", "w_funds"))
 

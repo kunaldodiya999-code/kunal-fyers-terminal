@@ -38,7 +38,7 @@ def test_terminal_page_with_a_token(monkeypatch, tmp_path):
     assert not at.exception
     from terminal.settings import SettingsStore
     assert SettingsStore().load().put_on is False
-    at.radio[2].set_value("PER_LOT").run()
+    at.radio(key="w_mode").set_value("PER_LOT").run()
     assert any(n.label == "Per lot amount (Rs)" for n in at.number_input)
 
 
@@ -74,5 +74,43 @@ def test_open_trade_and_todays_trades_show(monkeypatch, tmp_path):
     at = AppTest.from_file(APP, default_timeout=30).run()
     assert not at.exception, at.exception
     assert any("NSE:NIFTY26N0425000CE" in m.value and "P&L" in m.value for m in at.markdown)
-    assert any(m.label == "Funds utilized" and m.value.startswith("26.4") for m in at.metric)   # 13,195 / 50,000
+    assert any(m.label == "Funds utilized" and m.value.startswith("13.2") for m in at.metric)   # 13,195 / 1,00,000 paper
     assert any(m.label == "Today's P&L" and "715" in m.value for m in at.metric)
+
+
+
+def test_backtest_screen_runs_and_shows_the_report(monkeypatch, tmp_path):
+    import terminal.backtest_view as bv
+    from tests.test_backtest import DAYS, FakeData
+    monkeypatch.setenv("FYERS_CLIENT_ID", "ABCD-100")
+    monkeypatch.setenv("FYERS_SECRET_KEY", "s")
+    fyers.save_token("tok3")
+    fake = FakeFyers()
+    fake.set_price("NSE:NIFTY50-INDEX", 25010)
+    monkeypatch.setattr(fyers, "Fyers", lambda cid, tok: fake)
+    monkeypatch.setattr(engine, "load_master", lambda name, today, folder=None: master())
+    monkeypatch.setattr(engine, "CHART_FILE", tmp_path / "chart.json")
+    monkeypatch.setattr(engine.Terminal, "start", lambda self: None)
+
+    class Hist(FakeData):
+        fetched = 0
+
+        def __init__(self, client, db, log=print, **kw):
+            super().__init__()
+    monkeypatch.setattr(bv, "History", Hist)
+    at = AppTest.from_file(APP, default_timeout=60).run()
+    at.radio(key="w_view").set_value("Backtest").run()
+    assert not at.exception, at.exception
+    at.multiselect[0].set_value(["NIFTY"])
+    at.date_input[0].set_value(DAYS[2])
+    at.date_input[1].set_value(DAYS[-1])
+    at.number_input[0].set_value(90.0)
+    at.number_input[1].set_value(140.0)
+    at.button[0].click().run()
+    assert not at.exception, at.exception
+    labels = [m.label for m in at.metric]
+    assert {"Net P&L", "Trades", "Win rate", "Profit factor", "Max drawdown", "Sharpe"} <= set(labels)
+    trades = next(m.value for m in at.metric if m.label == "Trades")
+    assert int(trades) > 0
+    assert any("KUNAL FYERS TERMINAL BACKTEST" in c.value for c in at.code)
+    assert list((fyers.data_dir() / "backtests").glob("*_NIFTY/trades.csv"))

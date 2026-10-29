@@ -79,7 +79,7 @@ def test_first_look_never_trades_then_a_cross_buys_with_a_limit(setup):
     assert chart["candles"] and chart["direction"] and chart["vwap"] and chart["ktmi_long"]
     snap = term.snapshot()
     assert len(snap["chain"]) == 11 and sum(r["atm"] for r in snap["chain"]) == 1
-    assert snap["utilized_pct"] == pytest.approx(p.entry_price * 195 / 50000 * 100)
+    assert snap["utilized_pct"] == pytest.approx(p.entry_price * 195 / 100000 * 100)     # paper capital 1 lakh
 
 
 def test_stop_loss_on_the_option_price_exits_with_a_limit(setup):
@@ -157,3 +157,23 @@ def test_real_orders_setting_without_the_daily_arm_stays_paper(setup):
     run_to(term, clock, i + 1)
     assert term.position.mode == "PAPER"
     assert any("not armed" in e for e in term.events)
+
+
+def test_paper_trades_size_from_paper_capital_even_when_fyers_shows_zero(setup):
+    term, fake, clock, closes, store = setup
+    fake.fund = 0.0                                           # owner's screen 29 Oct: FYERS Available Balance 0
+    store.update(paper_capital=7000)                          # less than the Rs 20,000 per entry
+    i, _ = [(i, e) for i, e in crosses(closes) if i >= 16][0]
+    run_to(term, clock, i)
+    run_to(term, clock, i + 1)
+    assert term.position is not None and term.position.lots == 1     # 7,000 buys one lot of 95 x 65
+
+
+def test_chart_file_written_even_when_windows_refuses_the_replace(tmp_path, monkeypatch):
+    from pathlib import Path
+    from terminal.engine import replace_file
+    target = tmp_path / "chart.json"
+    target.write_text("old")
+    monkeypatch.setattr(Path, "replace", lambda self, t: (_ for _ in ()).throw(PermissionError(5, "Access is denied")))
+    replace_file(tmp_path / "chart.tmp", target, "new")
+    assert target.read_text() == "new" and not (tmp_path / "chart.tmp").exists()

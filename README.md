@@ -73,6 +73,34 @@ terminal must be exactly the same as in the FYERS app (e.g. `http://127.0.0.1:80
 
 To stop: close the browser tab and close the black window (or press `Ctrl + C` in it).
 
+## Backtest (past days, real option prices)
+
+At the top of the terminal choose **Backtest** (instead of Live terminal). Pick the index (NIFTY 50, SENSEX, ...),
+timeframe, dates (default: the last 30 trading days), Call / Put, premium mode, funds per entry, starting capital,
+slippage and charges, then **Run backtest**.
+
+* Same rules as live: a Direction cross on a finished candle, strike from the real option chain at that moment,
+  stop = the option's signal-candle low, exit on the opposite cross or 15:10, limit buffer.
+* Data: the shared database `C:\Users\USER\Desktop\Kunal\KunalQuant\data\database\kunal_quant.db` first.
+  Missing index days and option candles are fetched from FYERS (expired options too) and ADDED to that database
+  (nothing is changed or deleted; one backup copy is made in `data\database\backups` before the first write).
+  The first run of 30 days takes a few minutes; later runs are fast.
+* Report: Net P&L, win rate, profit factor, expectancy, max drawdown, Sharpe / Sortino, equity and drawdown curves,
+  daily P&L, monthly table, P&L spread, breakdowns (side, exit reason, hour, weekday, expiry day), every trade with
+  MAE / MFE / R multiple, a chart replay of any trade (index + option), and every signal with what happened.
+* Fills are realistic: entry at the next minute's open + slippage (no fill if it ran more than buffer + Rs 1 away),
+  exit at the next open - slippage, stop at the stop price (or worse if the price jumped through it). Charges:
+  brokerage Rs 20 an order, STT, exchange, SEBI, stamp, GST.
+* Results are saved in `data\backtests\<time>_<index>\` (trades.csv, signals.csv, days.csv, summary.json).
+  The "Signals & notes" tab has a summary you can paste to Claude.
+
+From PowerShell instead (same engine), folder `C:\Users\USER\Desktop\Kunal\kunal-fyers-terminal`, after today's
+login in the terminal:
+```
+.\.venv\Scripts\python.exe backtest.py --index NIFTY SENSEX --days 30 --timeframe 3 --low 180 --high 200 --funds 20000
+```
+(`--per-lot 6500` instead of `--low/--high` for the per lot amount mode.)
+
 ## Real orders (later, only when you decide)
 
 Two locks, both needed, every day:
@@ -93,6 +121,7 @@ Orders are LIMIT orders only (buy price + buffer, re-priced at most Rs 1 higher,
 | `terminal/indicators.py` | BBP_NM (from the owner's Pine code), VWAP, KTMI Uni Lite |
 | `terminal/fyers.py` | FYERS login, quotes, history, funds, contract list |
 | `terminal/broker.py` | paper fills and real limit orders |
+| `terminal/backtest.py`, `metrics.py`, `history.py`, `backtest_view.py`, `backtest.py` | the backtest: engine, statistics, past data (database + FYERS), screen, command |
 | `indicators/ktmi*`, `live_trading/` | copied unchanged from kunal-quant-claude-version (KTMI is locked) |
 | `data/` (on your PC only) | token, settings, open trade, trades.csv, events.log |
 

@@ -67,6 +67,22 @@ def _t(text: str) -> time:
     return time.fromisoformat(text)
 
 
+def replace_file(tmp: Path, target: Path, text: str) -> None:
+    """Write ``text`` to ``target`` safely. Windows refuses to replace a file another program is reading at that
+    instant (WinError 5, e.g. the browser fetching the chart data): try again a few times, then write it directly."""
+    tmp.write_text(text, encoding="utf-8")
+    for _ in range(6):
+        try:
+            tmp.replace(target)
+            return
+        except PermissionError:
+            _time.sleep(0.05)
+    try:
+        target.write_text(text, encoding="utf-8")
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
 class Terminal:
     def __init__(self, client, *, folder: Optional[Path] = None, store: Optional[SettingsStore] = None,
                  clock: Callable[[], datetime] = lambda: datetime.now(IST), chart_file: Optional[Path] = None,
@@ -128,9 +144,8 @@ class Terminal:
         if self.position is None:
             self.state_file.unlink(missing_ok=True)
             return
-        tmp = self.state_file.with_suffix(".tmp")
-        tmp.write_text(json.dumps({"position": asdict(self.position)}, indent=2), encoding="utf-8")
-        tmp.replace(self.state_file)
+        replace_file(self.state_file.with_suffix(".tmp"), self.state_file,
+                     json.dumps({"position": asdict(self.position)}, indent=2))
 
     def log(self, message: str) -> None:
         stamp = self.clock().strftime("%Y-%m-%d %H:%M:%S")
@@ -324,7 +339,7 @@ class Terminal:
         if pick.row is None:
             self.log(f"No {side} entry: {pick.reason}.")
             return
-        funds = self.funds or 0.0
+        funds = self.sizing_funds(s, now)
         lots = lots_for(s.funds_per_entry, funds, pick.row.price, c.lot_size)
         if lots < 1:
             self.log(f"No {side} entry: Rs {min(s.funds_per_entry, funds):,.0f} does not buy one lot of "
@@ -451,9 +466,19 @@ class Terminal:
             "markers": sorted(markers + trade_marks, key=lambda m: m["time"]),
         }
         self.chart_file.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.chart_file.with_suffix(".tmp")
-        tmp.write_text(json.dumps(data), encoding="utf-8")
-        tmp.replace(self.chart_file)
+        try:
+            replace_file(self.chart_file.with_suffix(".tmp"), self.chart_file, json.dumps(data))
+        except OSError:
+            pass                    # the chart misses one update (2 s); never a reason to stop trading
+
+    def real_mode(self, s: Settings, now: datetime) -> bool:
+        return bool(s.real_orders) and real_orders_allowed(True, self.folder, now.date())
+
+    def sizing_funds(self, s: Settings, now: datetime) -> float:
+        """Money a new entry may use: FYERS 'Available Balance' for real orders, the Paper capital for paper trades."""
+        if self.real_mode(s, now):
+            return self.funds or 0.0
+        return float(s.paper_capital)
 
     def snapshot(self) -> dict:
         with self.lock:
@@ -461,11 +486,14 @@ class Terminal:
             q = self.quotes.get(p.symbol) if p else None
             ltp = q["ltp"] if q else None
             deployed = p.entry_price * p.qty if p else 0.0
-            funds = self.funds
+            s = self.store.load()
+            real = self.real_mode(s, self.clock())
+            base = (self.funds or 0.0) + (deployed if p and p.mode == "REAL" else 0.0) if real else s.paper_capital
             return {
-                "status": self.status, "error": self.error, "funds": funds,
-                "deployed": deployed,
-                "utilized_pct": (deployed / funds * 100) if funds else 0.0,
+                "status": self.status, "error": self.error, "funds": self.funds, "real": real,
+                "paper_capital": s.paper_capital, "deployed": deployed,
+                "fund_rows": list(getattr(self.client, "fund_rows", []) or []),
+                "utilized_pct": (deployed / base * 100) if base else 0.0,
                 "chain": list(self.chain), "spot": (self.quotes.get(INDEXES[self.store.load().index].spot) or {})
                 .get("ltp"),
                 "direction": self._last_dir,

@@ -14,3 +14,10 @@
   and `live_trading/` are copies from kunal-quant-claude-version: change them there first.
 - FYERS data only. Index has no volume: VWAP uses the nearest FUTURES volume (owner rule).
 - Never commit `.env`, `data/`, tokens.
+- Backtest (owner 29 Oct 2026): "Backtest" view in app.py + `backtest.py` command. Engine `terminal/backtest.py` must
+  keep the SAME rules as the live engine (uses strategy.plan / pick_strike / lots_for). Data `terminal/history.py`:
+  shared KunalQuant DB first, FYERS for gaps (history; expired options via expiry_dates / history_underlying_symbols /
+  fno_historical_data), writes add-only in KunalQuant format + one backup. No real price data in this container:
+  the owner runs it and pastes the summary.
+- Paper trades size from Settings `paper_capital` (owner's FYERS Available Balance showed Rs 0 on 29 Oct).
+

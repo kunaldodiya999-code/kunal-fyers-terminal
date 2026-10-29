@@ -25,6 +25,7 @@ class Settings:
     premium_high: float = 0.0
     per_lot_amount: float = 0.0
     funds_per_entry: float = 0.0           # Rs to use for each new entry
+    paper_capital: float = 100000.0        # money paper trades may use (real orders use FYERS Available Balance)
     buffer: float = 2.0                    # limit price buffer, Rs (buy = price + 2, sell = price - 2)
     entry_start: str = "09:30"
     entry_end: str = "15:00"               # no new entries from here
@@ -39,7 +40,7 @@ class Settings:
             raise ValueError("timeframe must be 1, 3 or 5 minutes")
         if self.strike_mode not in MODES:
             raise ValueError(f"strike_mode must be one of {MODES}")
-        if min(self.premium_low, self.premium_high, self.per_lot_amount, self.funds_per_entry) < 0:
+        if min(self.premium_low, self.premium_high, self.per_lot_amount, self.funds_per_entry, self.paper_capital) < 0:
             raise ValueError("amounts cannot be negative")
         if self.premium_high and self.premium_low > self.premium_high:
             raise ValueError("premium range: the first box must be the lower price")
