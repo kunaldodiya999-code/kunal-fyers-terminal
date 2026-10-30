@@ -1,0 +1,85 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Risk Desk</title>
+<style>
+:root { --bg:#131722; --panel:#1e222d; --line:#2a2e39; --text:#d1d4dc; --dim:#787b86; --green:#26a69a; --red:#ef5350;
+  --blue:#2962ff; --amber:#ff9800; }
+* { box-sizing: border-box; }
+html, body { margin:0; height:100%; background:var(--bg); color:var(--text); font:12px -apple-system,'Segoe UI',Roboto,sans-serif; }
+button, select, input { font:inherit; color:var(--text); background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:4px 7px; }
+button { cursor:pointer; } button:hover { border-color:#4a4f5c; }
+button.primary { background:var(--blue); border-color:var(--blue); color:#fff; }
+button.active { background:#2962ff33; border-color:var(--blue); }
+button.danger { background:#b71c1c; border-color:#e53935; color:#fff; font-weight:700; letter-spacing:.04em; }
+#top { height:44px; display:flex; align-items:center; gap:6px; padding:0 8px; background:var(--panel); border-bottom:1px solid var(--line); }
+#top .sp { flex:1; } .badge { padding:2px 7px; border-radius:3px; font-weight:700; }
+.paper { background:#2962ff33; color:#82a7ff; } .real { background:#b71c1c; color:#fff; }
+#main { display:flex; height:calc(100% - 44px); }
+#chartbox { flex:1; position:relative; min-width:0; }
+#chart { position:absolute; inset:0; } #overlay { position:absolute; left:0; top:0; pointer-events:none; z-index:3; }
+#legend { position:absolute; left:8px; top:6px; z-index:4; background:#131722cc; padding:2px 6px; border-radius:3px; }
+#hint { position:absolute; left:50%; top:10px; transform:translateX(-50%); z-index:5; background:#2962ff; color:#fff; padding:4px 10px; border-radius:4px; display:none; }
+#side { width:340px; border-left:1px solid var(--line); background:var(--panel); overflow-y:auto; padding:8px; }
+h3 { margin:10px 0 6px; font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; }
+.card { border:1px solid var(--line); border-radius:6px; padding:8px; margin-bottom:8px; background:var(--bg); }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:3px 10px; } .grid div span { color:var(--dim); }
+.warn { color:var(--red); margin-top:4px; } .ok { color:var(--green); }
+.state { font-weight:700; } .ARMED { color:#82a7ff; } .IN_TRADE, .ENTRY_WORKING { color:var(--green); }
+.TARGET_EXITING, .STOP_CHASING, .EXITING { color:var(--amber); } .CLOSED, .CANCELLED { color:var(--dim); }
+.row { display:flex; gap:6px; margin-top:6px; } .row > * { flex:1; }
+label { display:flex; justify-content:space-between; align-items:center; gap:6px; margin:4px 0; }
+label input[type=number], label input[type=text] { width:110px; }
+#log { font:11px ui-monospace,Consolas,monospace; color:var(--dim); white-space:pre-wrap; max-height:180px; overflow:auto; }
+#toast { position:fixed; right:12px; bottom:12px; max-width:420px; padding:8px 12px; border-radius:6px; background:#000c; display:none; z-index:20; }
+#killdlg { position:fixed; inset:0; background:#000a; display:none; align-items:center; justify-content:center; z-index:30; }
+#killdlg .card { width:440px; background:var(--panel); }
+.notes { font:10.5px ui-monospace,Consolas,monospace; color:var(--dim); margin-top:4px; max-height:70px; overflow:auto; }
+</style></head>
+<body>
+<div id="top">
+  <select id="index"><option value="NIFTY">NIFTY 50</option><option value="BANKNIFTY">BANK NIFTY</option><option value="SENSEX">SENSEX</option></select>
+  <select id="symbol" style="width:260px"></select>
+  <button data-tf="1" class="tf">1m</button><button data-tf="3" class="tf">3m</button><button data-tf="5" class="tf">5m</button>
+  <button id="longbox" class="primary" title="Click it, then click your ENTRY price on the chart">+ Long box</button>
+  <span class="sp"></span>
+  <span id="feed" title="where the prices come from"></span>
+  <span id="lat" style="color:var(--dim)"></span>
+  <span id="mode" class="badge paper">PAPER</span>
+  <span>Day P&amp;L <b id="daypnl">0</b></span>
+  <button id="kill" class="danger" title="Cancel everything, close every position with limit orders, no new orders for 12 hours">KILL SWITCH</button>
+</div>
+<div id="main">
+  <div id="chartbox"><div id="chart"></div><canvas id="overlay"></canvas><div id="legend"></div>
+    <div id="hint">Click your ENTRY price on the chart</div></div>
+  <div id="side">
+    <div id="killinfo" class="warn"></div>
+    <h3>Ticket (new box)</h3>
+    <div id="ticket" class="card" style="color:var(--dim)">Press <b>+ Long box</b> and click your entry price on the option chart. Then drag the three lines: ENTRY (blue), STOP (red), TARGET (green).</div>
+    <h3>Trades</h3><div id="trades"></div>
+    <h3>Settings</h3>
+    <div class="card" id="settings">
+      <label>Capital allocation % <input type="number" id="s_allocation_pct" step="1" min="1" max="100"></label>
+      <label>Max risk per trade (Rs) <input type="number" id="s_max_risk" step="500" min="1"></label>
+      <label>Max loss per day (Rs) <input type="number" id="s_max_day_loss" step="500" min="0" placeholder="empty = no limit"></label>
+      <label>Limit buffer (Rs) <input type="number" id="s_buffer" step="0.5" min="0" max="10"></label>
+      <label>Strict sizing (worst fill + charges) <input type="checkbox" id="s_strict"></label>
+      <label>Paper capital (Rs) <input type="number" id="s_paper_capital" step="10000" min="0"></label>
+      <label>Real orders <input type="checkbox" id="s_real_orders"></label>
+      <label>Real orders: max lots <input type="number" id="s_real_max_lots" step="1" min="1"></label>
+      <div style="color:var(--dim)">Real orders also need today's arm: <code>.venv\Scripts\python.exe arm_real_orders.py</code> and your static IP at FYERS.</div>
+      <div class="row"><button id="savesettings">Save settings</button></div>
+    </div>
+    <h3>What happened</h3><div id="log"></div>
+  </div>
+</div>
+<div id="toast"></div>
+<div id="killdlg"><div class="card">
+  <b style="color:var(--red);font-size:14px">KILL SWITCH</b>
+  <p>Cancels every pending order, closes every open position with LIMIT orders (never market) and blocks every new order from this terminal for <b>12 hours</b>.</p>
+  <p>FYERS has no API for its own kill switch: after this, also press <b>Take a Break / Kill switch</b> in the FYERS app or on trade.fyers.in if you want FYERS to block you too.</p>
+  <p>Type <b>KILL</b> to confirm:</p><input id="killtext" style="width:100%">
+  <div class="row"><button id="killgo" class="danger">ACTIVATE</button><button id="killno">Back</button></div>
+</div></div>
+<script>window.DESK_KEY = "__KEY__";</script>
+<script src="/a/lwc.js"></script>
+<script src="/a/desk.js"></script>
+</body></html>

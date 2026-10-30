@@ -20,4 +20,14 @@
   fno_historical_data), writes add-only in KunalQuant format + one backup. No real price data in this container:
   the owner runs it and pastes the summary.
 - Paper trades size from Settings `paper_capital` (owner's FYERS Available Balance showed Rs 0 on 29 Oct).
+- Manual trade desk (owner 30 Oct 2026, branch feature/chart-risk-engine, design docs/design/Chart_Risk_Engine_Design.pdf):
+  `terminal/risk/` (sizing.py, desk.py states, gateways.py paper/FYERS, feed.py FYERS data+order websockets,
+  service.py local starlette server 127.0.0.1 + secret key + origin check, web/desk.js chart + box). Owner answers:
+  box on our chart OK if ms latency; option chart first; sizing PLAIN default + Strict switch; entry only when price
+  reaches the box; stop SL-L at exchange + target watched (one exit order, modified); risky stop drag REFUSED (never
+  reduce qty); no trade cap; max loss/day box (empty = none); no partial exits yet; separate capital for now; static
+  IP not confirmed. Real orders: setting + daily arm + real_max_lots (default 1).
+- KILL SWITCH on every page (`terminal/killswitch.py`): 12 h lock for every new order (desk, BBP engine, gateways),
+  cancel all pending then ONE limit exit per position (flatten_account, real mode only). FYERS has NO kill-switch API
+  (checked changelog to 16 Oct 2026): owner presses FYERS "Take a Break" himself.
 

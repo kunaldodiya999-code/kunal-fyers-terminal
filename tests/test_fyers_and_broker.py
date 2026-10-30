@@ -82,6 +82,6 @@ def test_paper_fills_never_worse_than_the_limit():
 def test_no_market_order_anywhere():
     from pathlib import Path
     root = Path(__file__).resolve().parents[1]
-    for path in list((root / "terminal").glob("*.py")) + list((root / "live_trading").glob("*.py")):
+    for path in list((root / "terminal").rglob("*.py")) + list((root / "live_trading").glob("*.py")):
         text = path.read_text(encoding="utf-8")
         assert '"type": 2' not in text and "'type': 2" not in text, path    # FYERS type 2 = market

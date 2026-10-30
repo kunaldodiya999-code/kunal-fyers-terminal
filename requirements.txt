@@ -1,5 +1,8 @@
 # Install with:  python setup_pc.py   (it also installs fyers-apiv3, see below)
 streamlit>=1.40
+uvicorn>=0.30
+starlette>=0.46
+websockets>=12
 pandas
 pytest
 # fyers-apiv3's own parts, in versions that install on Python 3.13 without a C++ compiler

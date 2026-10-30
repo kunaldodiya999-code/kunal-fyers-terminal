@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from terminal.broker import PaperBroker, RealBroker, real_orders_allowed
+from terminal.killswitch import KillSwitch
 from terminal.candles import IST, Candle, bucket_start, close_time, finished, in_session, resample
 from terminal.fyers import INDEXES, data_dir, Contracts, chain_strikes, load_master, nearest_contracts
 from terminal.indicators import bbp_nm, ktmi, vwap
@@ -332,6 +333,10 @@ class Terminal:
         return PaperBroker(s.buffer, s.buffer)
 
     def _enter(self, s: Settings, info, c: Contracts, side: str, signal_bar: Candle, now: datetime) -> None:
+        kill = KillSwitch(self.folder, self.clock)
+        if kill.active():
+            self.log(f"No {side} entry: {kill.message()}")
+            return
         rows = [ChainRow(r["strike"], r["call"] if side == "CALL" else r["put"],
                          r["call_ltp"] if side == "CALL" else r["put_ltp"]) for r in self.chain]
         pick = pick_strike(rows, mode=s.strike_mode, low=s.premium_low, high=s.premium_high,
@@ -413,6 +418,20 @@ class Terminal:
         with self.lock:
             if self.position:
                 self._exit(self.store.load(), "exit button", None)
+
+    def kill(self) -> None:
+        """Kill switch: a PAPER trade is closed here; a REAL one is closed by killswitch.flatten_account (which
+        cancels every order and exits every FYERS position), so only the record is closed here."""
+        with self.lock:
+            p = self.position
+            if p is None:
+                return
+            if p.mode == "PAPER":
+                self._exit(self.store.load(), "kill switch", None)
+            else:
+                self.log(f"KILL SWITCH: REAL trade {p.symbol} handed to the account close-out (check FYERS).")
+                self.position = None
+                self._save_position()
 
     # ------------------------------------------------------------------ chart and screen
     def _write_chart(self, s: Settings, info, c: Contracts, ltp: float, now: datetime) -> None:

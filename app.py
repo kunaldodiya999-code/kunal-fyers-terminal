@@ -28,6 +28,8 @@ div[data-testid="stMetricValue"] { font-size: 1.35rem; }
 .chain td.c { color: #26a69a; } .chain td.p { color: #ef5350; } .chain td.k { color: #d1d4dc; font-weight: 600; }
 .chain tr.atm td { background: rgba(41,98,255,0.18); }
 .pos { border: 1px solid #2a2e39; border-radius: 6px; padding: 8px 10px; margin: 6px 0; }
+.st-key-kill_open button, .st-key-kill_go button { background: #b71c1c; border-color: #e53935; color: #fff;
+  font-weight: 700; letter-spacing: .04em; }
 </style>""", unsafe_allow_html=True)
 
 store = SettingsStore()
@@ -90,6 +92,48 @@ if not token or not creds["client_id"]:
 term = terminal_for(creds["client_id"], token)
 
 
+@st.cache_resource(show_spinner=False)
+def risk_desk_for(client_id: str, token: str):
+    """The chart risk desk (Manual trade view): its own fast link on this PC, started once."""
+    from terminal.risk.service import RiskService
+    svc = RiskService(client_id=client_id, token=token, client=term.client, terminal=term)
+    svc.start()
+    return svc
+
+
+desk = risk_desk_for(creds["client_id"], token)
+
+
+def kill_switch_bar() -> None:
+    """The red KILL SWITCH on every page (owner 30 Oct 2026)."""
+    from terminal.killswitch import FYERS_KILL_HELP, KillSwitch
+    k = KillSwitch()
+    left, right = st.columns([6, 1.3])
+    if k.active():
+        left.error(f"{k.message()}  {FYERS_KILL_HELP}")
+        if st.session_state.get("kill_done"):
+            left.info(st.session_state["kill_done"])
+        return
+    if right.button("KILL SWITCH", type="primary", key="kill_open", help="Cancel every pending order, close every "
+                    "position with LIMIT orders, block every new order for 12 hours"):
+        st.session_state["kill_confirm"] = True
+    if st.session_state.get("kill_confirm"):
+        with left.container(border=True):
+            st.markdown("**KILL SWITCH**: cancels every pending order, closes every open position with LIMIT "
+                        "orders (never market) and blocks every new order from this terminal for **12 hours**. "
+                        + FYERS_KILL_HELP)
+            text = st.text_input("Type KILL to confirm", key="kill_text")
+            a, b = st.columns(2)
+            if a.button("ACTIVATE", type="primary", key="kill_go", disabled=text.strip() != "KILL"):
+                result = desk.kill()
+                st.session_state["kill_confirm"] = False
+                st.session_state["kill_done"] = result["message"]
+                st.rerun()
+            if b.button("Back", key="kill_back"):
+                st.session_state["kill_confirm"] = False
+                st.rerun()
+
+
 # ------------------------------------------------------------------ settings helpers
 def save(**changes) -> None:
     try:
@@ -106,7 +150,17 @@ def bind(field: str, key: str, cast=lambda v: v) -> None:
 
 s = store.load()
 
-view = st.radio("View", ("Live terminal", "Backtest"), horizontal=True, label_visibility="collapsed", key="w_view")
+kill_switch_bar()
+view = st.radio("View", ("Live terminal", "Manual trade (R:R box)", "Backtest"), horizontal=True,
+                label_visibility="collapsed", key="w_view")
+if view == "Manual trade (R:R box)":
+    st.caption(f"Draw a Long box on the option chart; it trades on its own fast link (milliseconds). "
+               f"[Open it full screen in its own browser tab]({desk.url}) - same desk, same trades.")
+    if hasattr(st, "iframe"):
+        st.iframe(desk.url, height=860)
+    else:
+        components.iframe(desk.url, height=860)
+    st.stop()
 if view == "Backtest":
     from terminal.backtest_view import render as backtest_screen
     backtest_screen(term.client)

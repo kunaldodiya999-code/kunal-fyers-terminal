@@ -73,6 +73,39 @@ terminal must be exactly the same as in the FYERS app (e.g. `http://127.0.0.1:80
 
 To stop: close the browser tab and close the black window (or press `Ctrl + C` in it).
 
+## Manual trade (R:R box) - your own levels, the program does the size and the orders
+
+At the top choose **Manual trade (R:R box)** (or open it full screen with the link above the chart).
+
+1. Pick the index and the option (e.g. `25000 CE`) and the timeframe.
+2. Press **+ Long box**, then click your ENTRY price on the chart. A box appears: blue ENTRY, red STOP, green TARGET.
+   For a bearish view draw the Long box on a PUT chart (bearish = buy put, never sell options).
+3. Drag the three lines. The ticket shows lots, quantity, money, rupee risk and reward, R:R and which limit decided
+   the size: `lots = min(capital x allocation% / (entry x lot), max risk / ((entry - stop) x lot))`.
+   Lot size comes from FYERS every morning. "Strict sizing" (switch) counts the buffers and charges too.
+4. Press **Arm**. Nothing is sent until the price REACHES the entry; then a BUY LIMIT at price + Rs 2.
+5. When it fills, ONE protective SELL SL-L sits at FYERS (trigger = stop, limit = stop - Rs 2). It works even if your
+   PC or internet stops.
+6. Drag the STOP: after you let go, the SL-L order is modified at FYERS. A drag that would risk more than Max risk is
+   refused (the quantity is never reduced). Trailing the stop into profit is allowed.
+7. TARGET reached: the SAME order becomes a LIMIT SELL at price - Rs 2 (never two sell orders). Exit now / 15:10:
+   the same. If the price jumps below the SL-L limit, the limit follows the price down - never a market order.
+
+Settings on the right: capital allocation %, max risk per trade, **max loss per day** (empty = no limit), buffer,
+strict sizing, paper capital, real orders (+ max lots for real orders, 1 to start). No cap on the number of trades.
+Prices come from the FYERS live websocket (milliseconds); the time a price takes to reach the screen is shown at the top.
+
+## KILL SWITCH (on every page)
+
+The red **KILL SWITCH** (top of every page, and on the trading desk): type `KILL`, press ACTIVATE.
+* Every pending order is cancelled, every open position is closed with LIMIT orders (re-priced until done, never
+  market), and the terminal sends NO new order for **12 hours** (also after a restart).
+* With real orders OFF (paper), only paper trades are closed: your FYERS account is not touched.
+* FYERS has no API for its own kill switch ("Take a Break"): press it yourself in the FYERS app or on trade.fyers.in
+  -> Profile if you want FYERS to block you too.
+* See it / end it early (folder `C:\Users\USER\Desktop\Kunal\kunal-fyers-terminal`):
+  `.\.venv\Scripts\python.exe kill_switch.py` (status) / `.\.venv\Scripts\python.exe kill_switch.py --off`.
+
 ## Backtest (past days, real option prices)
 
 At the top of the terminal choose **Backtest** (instead of Live terminal). Pick the index (NIFTY 50, SENSEX, ...),
@@ -121,6 +154,8 @@ Orders are LIMIT orders only (buy price + buffer, re-priced at most Rs 1 higher,
 | `terminal/indicators.py` | BBP_NM (from the owner's Pine code), VWAP, KTMI Uni Lite |
 | `terminal/fyers.py` | FYERS login, quotes, history, funds, contract list |
 | `terminal/broker.py` | paper fills and real limit orders |
+| `terminal/risk/` | Manual trade desk: sizing, trade states, paper / FYERS orders, live feed, local fast link, chart page |
+| `terminal/killswitch.py`, `kill_switch.py` | kill switch (12 h, cancel + limit close-out) |
 | `terminal/backtest.py`, `metrics.py`, `history.py`, `backtest_view.py`, `backtest.py` | the backtest: engine, statistics, past data (database + FYERS), screen, command |
 | `indicators/ktmi*`, `live_trading/` | copied unchanged from kunal-quant-claude-version (KTMI is locked) |
 | `data/` (on your PC only) | token, settings, open trade, trades.csv, events.log |

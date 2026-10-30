@@ -12,6 +12,12 @@ from tests.fakes import FakeFyers, master
 APP = str(Path(__file__).resolve().parents[1] / "app.py")
 
 
+@pytest.fixture(autouse=True)
+def _no_risk_desk_server(monkeypatch):
+    import terminal.risk.service as service
+    monkeypatch.setattr(service.RiskService, "start", lambda self: None)     # no local server in screen tests
+
+
 def test_login_page_asks_for_the_app_details_first():
     at = AppTest.from_file(APP, default_timeout=30).run()
     assert not at.exception
@@ -106,7 +112,7 @@ def test_backtest_screen_runs_and_shows_the_report(monkeypatch, tmp_path):
     at.date_input[1].set_value(DAYS[-1])
     at.number_input[0].set_value(90.0)
     at.number_input[1].set_value(140.0)
-    at.button[0].click().run()
+    next(b for b in at.button if b.label == "Run backtest").click().run()
     assert not at.exception, at.exception
     labels = [m.label for m in at.metric]
     assert {"Net P&L", "Trades", "Win rate", "Profit factor", "Max drawdown", "Sharpe"} <= set(labels)
@@ -114,3 +120,28 @@ def test_backtest_screen_runs_and_shows_the_report(monkeypatch, tmp_path):
     assert int(trades) > 0
     assert any("KUNAL FYERS TERMINAL BACKTEST" in c.value for c in at.code)
     assert list((fyers.data_dir() / "backtests").glob("*_NIFTY/trades.csv"))
+
+
+
+def test_kill_switch_on_every_page_blocks_orders(monkeypatch, tmp_path):
+    from terminal.killswitch import KillSwitch
+    monkeypatch.setenv("FYERS_CLIENT_ID", "ABCD-100")
+    monkeypatch.setenv("FYERS_SECRET_KEY", "s")
+    fyers.save_token("tok4")
+    fake = FakeFyers()
+    fake.set_price("NSE:NIFTY50-INDEX", 25010)
+    monkeypatch.setattr(fyers, "Fyers", lambda cid, tok: fake)
+    monkeypatch.setattr(engine, "load_master", lambda name, today, folder=None: master())
+    monkeypatch.setattr(engine, "CHART_FILE", tmp_path / "chart.json")
+    monkeypatch.setattr(engine.Terminal, "start", lambda self: None)
+    at = AppTest.from_file(APP, default_timeout=60).run()
+    for view in ("Live terminal", "Manual trade (R:R box)", "Backtest"):
+        at.radio(key="w_view").set_value(view).run()
+        assert not at.exception, at.exception
+        assert any(b.label == "KILL SWITCH" for b in at.button), view
+    at.button(key="kill_open").click().run()
+    at.text_input(key="kill_text").set_value("KILL").run()
+    at.button(key="kill_go").click().run()
+    assert not at.exception, at.exception
+    assert KillSwitch().active()
+    assert any("KILL SWITCH ON" in e.value for e in at.error)

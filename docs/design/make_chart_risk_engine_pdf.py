@@ -435,6 +435,25 @@ def build():
         "<b>Q8</b> Partial exits (e.g. half at 1:1, rest trailed) - wanted now or later?",
         "<b>Q9</b> Should the existing BBP_NM auto-strategy and the manual box trades share one capital pool?",
         "<b>Q10</b> Is your static IP already whitelisted at FYERS for API orders?"])
+    st += [PageBreak(), P("13. Your answers (30 Oct 2026) and what was built", "h1"),
+           table([["Question", "Your answer", "Built as"],
+                  ["Q1 terminal chart", "OK if there is no lag (milliseconds fine, not seconds)",
+                   "FYERS live websocket -> desk -> chart over a local link: about 1 ms on this PC (measured in the "
+                   "tests); an order change = one FYERS call (about 100-300 ms, FYERS side)"],
+                  ["Q2 option chart first", "agreed", "boxes on the option chart; index-chart boxes later"],
+                  ["Q3 sizing", "your formula by default + a switch", "PLAIN default (10 lots in the SENSEX example); "
+                   "'Strict sizing' switch (8 lots)"],
+                  ["Kill switch", "on every page; broker kill switch; no new orders for 12 h",
+                   "red KILL SWITCH on every page: cancel all + limit close-out + 12 h lock. FYERS has no API for its "
+                   "own kill switch, so the screen tells you to press 'Take a Break' in FYERS"],
+                  ["Q4 entry", "only when the price reaches the box", "ARMED until reached, then BUY LIMIT price + 2"],
+                  ["Q5 exits", "the safer one", "SL-L at FYERS, target watched, same order modified"],
+                  ["Q6 risky drag", "do not reduce the quantity", "the drag is refused and the line jumps back"],
+                  ["Q7 trades / loss", "no cap; max loss box", "no trade cap; 'Max loss per day' box (empty = none)"],
+                  ["Q8 partial exits", "later", "not built"],
+                  ["Q9 capital pool", "same pool later, separate now", "desk has its own capital for now"],
+                  ["Q10 static IP", "to be confirmed", "real orders stay OFF until you confirm; then 1 lot first"]],
+                 [30, 56, 88])]
     st += [Spacer(1, 4 * mm),
            callout("Notes: this is a tool that executes YOUR decisions; it is not advice and cannot remove market "
                    "risk (gaps, fast moves, liquidity). SEBI's 2026 rules for retail API trading (static IP, order "
